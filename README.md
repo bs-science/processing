@@ -2,4 +2,4 @@
 <p>필요한 것: test</p>
 <p>Contact: 2jw5464@gmail.com, ju.lee219@ai.jne.kr</p>
 <!-- 이 줄은 GitHub Actions에서 자동으로 갱신합니다. -->
-<p>updated at 2026.09.28_T10:26:24_KST</p>
+<p>updated at 2026.09.28_T10:28:08_KST</p>
