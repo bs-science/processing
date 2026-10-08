@@ -2,4 +2,4 @@
 필요한 것: 
 Contact: 2jw5464@gmail.com, ju.lee219@ai.jne.kr
 <!-- 아래 줄은 자동으로 갱신됨. 건드리지 말 것 -->
-<p>updated at 2026.09.28_T10:30:04_KST</p>
+<p>updated at 2026.10.08_T11:33:02_KST</p>
