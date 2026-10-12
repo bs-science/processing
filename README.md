@@ -1,16 +1,14 @@
-# Vernier 스펙트럼 분석기
+# 스펙트럼 분석기
 
-Vernier Spectral Analysis 등에서 내보낸 CSV/XLSX 스펙트럼 파일을 불러와 434 nm와 578 nm 주변을 분석하는 Windows GUI입니다. 이 프로그램은 분광기 USB·SDK에 직접 연결하지 않으며, 파일 분석만 수행합니다. **NaCl 연구 분석** 창에서는 이번 mCP 연구의 농도별 반복측정과 검량선을 한 번에 처리할 수 있습니다.
+CSV/XLSX 스펙트럼 파일을 불러와 434 nm와 578 nm 주변을 분석하는 Windows GUI입니다. **NaCl 연구 분석** 창에서는 이번 mCP 연구의 농도별 반복측정과 검량선을 한 번에 처리할 수 있습니다.
 
 ## 사용 시작
 
-1. Vernier 측정 프로그램 또는 다른 분광기 소프트웨어에서 측정한 스펙트럼을 CSV/XLSX로 저장합니다.
-2. `run.exe`를 실행하고 **CSV 불러오기** 또는 **NaCl 연구 분석** 창의 **파일 일괄 추가**를 사용합니다.
-3. 그래프를 클릭해 파장과 측정값을 확인하거나 **선택 범위 CSV 저장**으로 내보냅니다.
+1. `run.exe`를 실행하고 **CSV 불러오기** 또는 **NaCl 연구 분석** 창의 **파일 일괄 추가**를 사용합니다.
+2. 그래프를 클릭해 파장과 측정값을 확인하거나 **선택 범위 CSV 저장**으로 내보냅니다.
 
 ## 지원 기능
 
-- Vernier CSV/TXT/TSV 자동 인식: UTF-8, CP949, 쉼표·탭·세미콜론 구분자
 - 여러 측정 열 선택 및 반복된 파장 열 처리
 - NaCl 0.0, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6 M 조건과 반복측정 관리
 - 농도별 평균 스펙트럼 및 반복측정 표준편차 계산
@@ -22,18 +20,10 @@ Vernier Spectral Analysis 등에서 내보낸 CSV/XLSX 스펙트럼 파일을 �
 - 그래프 클릭 시 가장 가까운 실제 측정점의 파장과 측정값 표시
 - 전체 파장, 두 목표 영역, 현재 화면 범위를 UTF-8 BOM CSV로 저장
 - %투과율 데이터를 `A = -log10(T)`로 흡광도 변환하되 원본 열 보존
-- 설치된 Vernier Spectral Analysis 실행 버튼
 
 ## 실행
 
 `run.exe`를 더블클릭하면 실행됩니다. 설치 프로그램이 아니라 `app.py`를 여는 실행용 파일입니다.
-
-PowerShell에서는 다음과 같이 실행할 수도 있습니다.
-
-```powershell
-cd 'C:\Users\user\Desktop\Vernier 스펙트럼 분석기'
-.\run.exe
-```
 
 의존성이 없다는 오류가 나면 현재 Python 환경에 설치합니다.
 
@@ -53,11 +43,3 @@ python -m pip install -r requirements.txt
 6. **요약 CSV 저장**과 **그래프 PNG 저장**으로 보고서용 자료를 만듭니다.
 
 분석값은 434 nm와 578 nm의 단일 측정점이 아니라 기본 ±5 nm 영역의 평균입니다. 이는 장치의 5 nm 광학 분해능과 ±4 nm 파장 정확도를 고려한 것입니다. 미지 시료 농도 예측은 회귀 관계가 충분히 선형이고 미지 시료가 표준 농도 범위 안에 있을 때만 사용하십시오.
-
-## 검증
-
-```powershell
-python -m unittest discover -s tests -v
-python app.py --smoke-test
-run.exe --smoke-test
-```
