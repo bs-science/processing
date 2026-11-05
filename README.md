@@ -46,7 +46,7 @@ python .\csv_graph_gui.py
 3. 각 CSV에 같은 열 이름이 있으면 **모든 파일 겹쳐 그리기**로 하나의 그래프에서 비교합니다.
 4. **그래프 미리보기**는 큰 별도 창에서 확대·이동하며 확인할 수 있고, **현재 그래프 PNG 저장**으로 결과를 저장합니다.
 
-GitHub Release의 `CsvGraphTool.exe`는 위 도구를 한 파일로 묶은 Windows 실행 파일입니다. 실행 파일의 파일 속성 회사명은 `jw-astro09`입니다. Windows에서 신뢰된 게시자로 표시되려면 별도로 발급받은 코드 서명 인증서로 Authenticode 서명이 필요합니다.
+GitHub Release의 `CsvGraphTool.exe`는 위 도구를 한 파일로 묶은 Windows 실행 파일입니다. 현재 배포 파일 버전은 `1.1.0`이며, 실행 파일의 파일 속성 회사명은 `jw-astro09`입니다. Windows에서 신뢰된 게시자로 표시되려면 별도로 발급받은 코드 서명 인증서로 Authenticode 서명이 필요합니다.
 
 ## NaCl 연구 분석 사용 순서
 
