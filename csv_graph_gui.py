@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,11 @@ matplotlib.rcParams["font.family"] = ["Malgun Gothic"]
 matplotlib.rcParams["axes.unicode_minus"] = False
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+
+
+CONCENTRATION_PATTERN = re.compile(
+    r"(?<![\d.])(?P<value>\d+(?:[.,]\d+)?)\s*(?P<unit>mM|M|mol/L|mol)(?![A-Za-z])"
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +72,7 @@ class CsvGraphApp(tk.Tk):
         ttk.Button(actions, text="CSV 파일 추가", style="Accent.TButton", command=self.add_files).pack(side="left")
         ttk.Button(actions, text="선택 파일 그래프", command=self.plot_selected).pack(side="left", padx=(8, 0))
         ttk.Button(actions, text="모든 파일 겹쳐 그리기", command=self.plot_overlay).pack(side="left", padx=8)
+        ttk.Button(actions, text="농도별 평균 그래프", command=self.plot_concentration_averages).pack(side="left")
         ttk.Button(actions, text="그래프 미리보기", command=self.preview_graph).pack(side="left")
 
         body = ttk.Panedwindow(self, orient="horizontal")
@@ -107,7 +114,7 @@ class CsvGraphApp(tk.Tk):
         ttk.Separator(parent).pack(fill="x", pady=14)
         ttk.Label(parent, text="내보내기", style="CardTitle.TLabel").pack(anchor="w")
         ttk.Button(parent, text="현재 그래프 PNG 저장", command=self.save_png).pack(fill="x", pady=(7, 0))
-        ttk.Label(parent, text="오버레이는 모든 파일에 같은 이름의 X/Y 열이 있을 때 사용할 수 있습니다.", style="Card.TLabel", wraplength=290, justify="left").pack(anchor="w", pady=(10, 0))
+        ttk.Label(parent, text="오버레이는 같은 열 이름을 우선 사용하고, 없으면 선택한 파일의 열 순서로 대체합니다. 평균은 파일명 속 0.4M_rep1, 400mM_2 형식의 농도를 인식합니다.", style="Card.TLabel", wraplength=290, justify="left").pack(anchor="w", pady=(10, 0))
 
     def _build_graph(self, parent: ttk.Frame) -> None:
         self.figure = Figure(figsize=(8.5, 6.2), dpi=100, facecolor="#ffffff")
@@ -180,7 +187,8 @@ class CsvGraphApp(tk.Tk):
         self.y_combo["values"] = dataset.columns
         self.x_column.set(dataset.columns[0])
         numeric = self._numeric_columns(dataset)
-        self.y_column.set(numeric[0] if numeric else (dataset.columns[1] if len(dataset.columns) > 1 else dataset.columns[0]))
+        y_candidates = [column for column in numeric if column != dataset.columns[0]]
+        self.y_column.set(y_candidates[0] if y_candidates else (dataset.columns[1] if len(dataset.columns) > 1 else dataset.columns[0]))
         self.status_text.set(f"{dataset.path.name}: {len(dataset.rows)}개 행, {len(dataset.columns)}개 열")
 
     @staticmethod
@@ -236,6 +244,38 @@ class CsvGraphApp(tk.Tk):
                 continue
         return x_values, y_values
 
+    def _selected_column_indexes(self) -> tuple[int, int] | None:
+        columns = list(self.x_combo["values"])
+        try:
+            return columns.index(self.x_column.get()), columns.index(self.y_column.get())
+        except ValueError:
+            return None
+
+    def _series_for_dataset(self, dataset: CsvDataset) -> tuple[list[float], list[float], bool]:
+        """Use matching headers first, then fall back to the selected column positions."""
+        x_name = self.x_column.get()
+        y_name = self.y_column.get()
+        if x_name in dataset.columns and y_name in dataset.columns:
+            x_values, y_values = self._series(dataset, x_name, y_name)
+            return x_values, y_values, False
+        indexes = self._selected_column_indexes()
+        if indexes is None:
+            return [], [], False
+        x_index, y_index = indexes
+        if x_index >= len(dataset.columns) or y_index >= len(dataset.columns):
+            return [], [], False
+        x_values, y_values = self._series(dataset, dataset.columns[x_index], dataset.columns[y_index])
+        return x_values, y_values, True
+
+    @staticmethod
+    def _concentration_from_path(path: Path) -> tuple[float, str] | None:
+        match = CONCENTRATION_PATTERN.search(path.stem)
+        if match is None:
+            return None
+        value = float(match.group("value").replace(",", "."))
+        concentration_m = value / 1000 if match.group("unit") == "mM" else value
+        return concentration_m, f"{concentration_m:g} M"
+
     def _prepare_plot(self) -> None:
         self.axis.clear()
         self.axis.grid(True, alpha=0.25)
@@ -270,17 +310,16 @@ class CsvGraphApp(tk.Tk):
             return
         self._prepare_plot()
         plotted = 0
+        position_fallback_count = 0
         skipped: list[str] = []
         for dataset in self.datasets:
-            if self.x_column.get() not in dataset.columns or self.y_column.get() not in dataset.columns:
-                skipped.append(dataset.path.name)
-                continue
-            x_values, y_values = self._series(dataset, self.x_column.get(), self.y_column.get())
+            x_values, y_values, used_position_fallback = self._series_for_dataset(dataset)
             if not x_values:
                 skipped.append(dataset.path.name)
                 continue
             self.axis.plot(x_values, y_values, marker="o", markersize=2.5, linewidth=1.2, label=dataset.path.name)
             plotted += 1
+            position_fallback_count += used_position_fallback
         if not plotted:
             messagebox.showerror("그래프 오류", "겹쳐 그릴 수 있는 숫자 데이터를 찾지 못했습니다.", parent=self)
             return
@@ -288,8 +327,66 @@ class CsvGraphApp(tk.Tk):
         self.axis.legend()
         self.figure.tight_layout()
         self.canvas.draw()
+        fallback_text = f" {position_fallback_count}개 파일은 열 순서로 매칭했습니다." if position_fallback_count else ""
         skipped_text = f" 제외: {', '.join(skipped)}" if skipped else ""
-        self.status_text.set(f"{plotted}개 파일을 하나의 그래프에 표시했습니다.{skipped_text}")
+        self.status_text.set(f"{plotted}개 파일을 하나의 그래프에 표시했습니다.{fallback_text}{skipped_text}")
+
+    def plot_concentration_averages(self) -> None:
+        if not self.datasets or not self.x_column.get() or not self.y_column.get():
+            messagebox.showinfo("안내", "파일을 추가하고 X/Y축 열을 선택하세요.", parent=self)
+            return
+        grouped: dict[float, dict[float, list[float]]] = {}
+        labels: dict[float, str] = {}
+        file_counts: dict[float, int] = {}
+        skipped: list[str] = []
+        for dataset in self.datasets:
+            concentration = self._concentration_from_path(dataset.path)
+            x_values, y_values, _ = self._series_for_dataset(dataset)
+            if concentration is None or not x_values:
+                skipped.append(dataset.path.name)
+                continue
+            concentration_m, label = concentration
+            per_file: dict[float, list[float]] = {}
+            for x_value, y_value in zip(x_values, y_values):
+                per_file.setdefault(round(x_value, 10), []).append(y_value)
+            grouped.setdefault(concentration_m, {})
+            labels[concentration_m] = label
+            file_counts[concentration_m] = file_counts.get(concentration_m, 0) + 1
+            for x_value, values in per_file.items():
+                grouped[concentration_m].setdefault(x_value, []).append(sum(values) / len(values))
+
+        self._prepare_plot()
+        plotted = 0
+        insufficient: list[str] = []
+        for concentration_m in sorted(grouped):
+            file_count = file_counts[concentration_m]
+            common_points = [
+                (x_value, values)
+                for x_value, values in grouped[concentration_m].items()
+                if file_count >= 2 and len(values) == file_count
+            ]
+            if not common_points:
+                insufficient.append(labels[concentration_m])
+                continue
+            common_points.sort(key=lambda point: point[0])
+            x_values = [point[0] for point in common_points]
+            y_values = [sum(point[1]) / file_count for point in common_points]
+            self.axis.plot(x_values, y_values, marker="o", markersize=2.5, linewidth=1.4, label=f"{labels[concentration_m]} 평균 (n={file_count})")
+            plotted += 1
+        if not plotted:
+            messagebox.showerror("평균 그래프 오류", "같은 농도에서 2개 이상이며 공통 X값을 가진 파일을 찾지 못했습니다. 파일명에 예: 0.4M_rep1 형식으로 농도를 넣으세요.", parent=self)
+            return
+        self._set_labels(overlay=True)
+        self.axis.set_title((self.title_text.get().strip() or "CSV 그래프") + " - 농도별 평균")
+        self.axis.legend()
+        self.figure.tight_layout()
+        self.canvas.draw()
+        details: list[str] = []
+        if skipped:
+            details.append(f"농도/숫자 데이터 미인식: {', '.join(skipped)}")
+        if insufficient:
+            details.append(f"반복 또는 공통 X값 부족: {', '.join(insufficient)}")
+        self.status_text.set(f"{plotted}개 농도의 평균 그래프를 표시했습니다." + (" " + " | ".join(details) if details else ""))
 
     def preview_graph(self) -> None:
         if not self.axis.lines:
