@@ -59,3 +59,20 @@ GitHub Release의 `CsvGraphTool.exe`는 위 도구를 한 파일로 묶은 Windo
 6. **요약 CSV 저장**과 **그래프 PNG 저장**으로 보고서용 자료를 만듭니다.
 
 분석값은 434 nm와 578 nm의 단일 측정점이 아니라 기본 ±5 nm 영역의 평균입니다. 이는 장치의 5 nm 광학 분해능과 ±4 nm 파장 정확도를 고려한 것입니다. 미지 시료 농도 예측은 회귀 관계가 충분히 선형이고 미지 시료가 표준 농도 범위 안에 있을 때만 사용하십시오.
+
+
+### 실행이 안될 경우
+
+1. 파이선이 설치되어 있는지 확인합니다.
+```cmd
+python --version
+```
+만약 파이선 버전이 뜨지 않을 경우 파이선이 설치되지 않은 것 이므로 파이선을 설치합니다.
+```cmd
+winget install python
+```
+2. 그래도 실행이 안 될 경우 scipy를 설치합니다.
+```cmd
+pip install scipy
+```
+3. 그래도 안될 시 <a href="https://www.anaconda.com/download">anaconda</a> 설치 후 scipy를 설치하고 실행합니다.(개발 환경이 anaconda라서 anaconda 설치를 권장합니다.)
