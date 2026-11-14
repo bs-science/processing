@@ -34,7 +34,7 @@ class CsvDataset:
 class CsvGraphApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("CSV 그래프 도구")
+        self.title("스펙트럼 분석기")
         self.geometry("1320x900")
         self.minsize(980, 650)
         self.option_add("*Font", ("Malgun Gothic", 10))
@@ -64,7 +64,7 @@ class CsvGraphApp(tk.Tk):
     def _build_ui(self) -> None:
         header = ttk.Frame(self, padding=(18, 14, 18, 8))
         header.pack(fill="x")
-        ttk.Label(header, text="CSV 그래프 도구", style="Title.TLabel").pack(side="left")
+        ttk.Label(header, text="스펙트럼 분석기", style="Title.TLabel").pack(side="left")
         ttk.Label(header, text="다중 CSV 비교 · 그래프 오버레이 · PNG 저장", style="Subtitle.TLabel").pack(side="left", padx=(18, 0), pady=(7, 0))
 
         actions = ttk.Frame(self, padding=(18, 4, 18, 10))
@@ -74,7 +74,7 @@ class CsvGraphApp(tk.Tk):
         ttk.Button(actions, text="모든 파일 겹쳐 그리기", command=self.plot_overlay).pack(side="left", padx=8)
         ttk.Button(actions, text="농도별 평균 그래프", command=self.plot_concentration_averages).pack(side="left")
         ttk.Button(actions, text="그래프 미리보기", command=self.preview_graph).pack(side="left")
-        ttk.Button(actions, text="434/578 흡광도 비", command=self.show_absorbance_ratio).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="434/578 흡광도 비 비교", command=self.show_absorbance_ratio).pack(side="left", padx=(8, 0))
 
         body = ttk.Panedwindow(self, orient="horizontal")
         body.pack(fill="both", expand=True, padx=18, pady=(0, 12))
@@ -306,35 +306,76 @@ class CsvGraphApp(tk.Tk):
         self.status_text.set(f"{dataset.path.name}: {len(x_values)}개 데이터 점을 표시했습니다.")
 
     def show_absorbance_ratio(self) -> None:
-        """Show A578/A434 using the points nearest to 434 nm and 578 nm."""
-        selection = self.file_list.curselection()
-        if not selection or not self.x_column.get() or not self.y_column.get():
-            messagebox.showinfo("안내", "파일과 파장(X축)·흡광도(Y축) 열을 선택하세요.", parent=self)
-            return
-        dataset = self.datasets[selection[0]]
-        x_values, y_values = self._series(dataset, self.x_column.get(), self.y_column.get())
-        if not x_values:
-            messagebox.showerror("비율 계산 오류", "선택한 열에서 숫자 데이터를 찾지 못했습니다.", parent=self)
+        """Summarize A578/A434 for every curve currently shown on the graph."""
+        if not self.axis.lines:
+            messagebox.showinfo("안내", "먼저 하나 이상의 그래프를 그려 주세요.", parent=self)
             return
 
-        index_434 = min(range(len(x_values)), key=lambda index: abs(x_values[index] - 434.0))
-        index_578 = min(range(len(x_values)), key=lambda index: abs(x_values[index] - 578.0))
-        wavelength_434, absorbance_434 = x_values[index_434], y_values[index_434]
-        wavelength_578, absorbance_578 = x_values[index_578], y_values[index_578]
-        if absorbance_434 == 0:
-            messagebox.showerror("비율 계산 오류", "434 nm 부근의 흡광도가 0이어서 비율을 계산할 수 없습니다.", parent=self)
+        rows: list[tuple[str, str, str, str, str, str]] = []
+        for number, line in enumerate(self.axis.lines, start=1):
+            points: list[tuple[float, float]] = []
+            for x_value, y_value in zip(line.get_xdata(), line.get_ydata()):
+                try:
+                    points.append((float(x_value), float(y_value)))
+                except (TypeError, ValueError):
+                    continue
+            if not points:
+                continue
+            wavelength_434, absorbance_434 = min(points, key=lambda point: abs(point[0] - 434.0))
+            wavelength_578, absorbance_578 = min(points, key=lambda point: abs(point[0] - 578.0))
+            label = line.get_label()
+            if not label or label.startswith("_"):
+                label = f"그래프 {number}"
+            ratio_text = "계산 불가 (A434=0)" if absorbance_434 == 0 else f"{absorbance_578 / absorbance_434:.6g}"
+            rows.append(
+                (
+                    label,
+                    f"{wavelength_434:.3f}",
+                    f"{absorbance_434:.6g}",
+                    f"{wavelength_578:.3f}",
+                    f"{absorbance_578:.6g}",
+                    ratio_text,
+                )
+            )
+        if not rows:
+            messagebox.showerror("비율 계산 오류", "현재 그래프에서 숫자 데이터를 찾지 못했습니다.", parent=self)
             return
 
-        ratio = absorbance_578 / absorbance_434
-        messagebox.showinfo(
-            "434/578 흡광도 비",
-            f"파일: {dataset.path.name}\n\n"
-            f"434 nm 부근: {wavelength_434:.3f} nm, 흡광도 {absorbance_434:.6g}\n"
-            f"578 nm 부근: {wavelength_578:.3f} nm, 흡광도 {absorbance_578:.6g}\n\n"
-            f"A578 / A434 = {ratio:.6g}",
-            parent=self,
-        )
-        self.status_text.set(f"{dataset.path.name}: A578/A434 = {ratio:.6g}")
+        window = tk.Toplevel(self)
+        window.title("434/578 흡광도 비 비교")
+        window.geometry("980x360")
+        window.minsize(780, 260)
+        window.columnconfigure(0, weight=1)
+        window.rowconfigure(1, weight=1)
+        ttk.Label(
+            window,
+            text="현재 그래프의 모든 선에서 434 nm·578 nm에 가장 가까운 실제 측정값을 비교합니다. 비율 = A578 / A434",
+            padding=(12, 10),
+        ).grid(row=0, column=0, sticky="w")
+        table_frame = ttk.Frame(window, padding=(12, 0, 12, 12))
+        table_frame.grid(row=1, column=0, sticky="nsew")
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(0, weight=1)
+        columns = ("graph", "w434", "a434", "w578", "a578", "ratio")
+        table = ttk.Treeview(table_frame, columns=columns, show="headings")
+        headings = {
+            "graph": ("그래프", 250),
+            "w434": ("434 nm 실제 파장", 135),
+            "a434": ("A434", 120),
+            "w578": ("578 nm 실제 파장", 135),
+            "a578": ("A578", 120),
+            "ratio": ("A578 / A434", 140),
+        }
+        for column, (heading, width) in headings.items():
+            table.heading(column, text=heading)
+            table.column(column, width=width, anchor="center")
+        for row in rows:
+            table.insert("", "end", values=row)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=table.yview)
+        table.configure(yscrollcommand=scrollbar.set)
+        table.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.status_text.set(f"현재 그래프의 {len(rows)}개 선에 대한 A578/A434 표를 표시했습니다.")
 
     def plot_overlay(self) -> None:
         if not self.datasets or not self.x_column.get() or not self.y_column.get():

@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 4, 0, 0),
-    prodvers=(1, 4, 0, 0),
+    filevers=(1, 4, 1, 0),
+    prodvers=(1, 4, 1, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -15,12 +15,12 @@ VSVersionInfo(
       StringTable(
         '041204B0',
         [StringStruct('CompanyName', 'jw-astro09'),
-         StringStruct('FileDescription', 'CSV Graph Tool'),
-         StringStruct('FileVersion', '1.4.0'),
-         StringStruct('InternalName', 'CsvGraphTool'),
-         StringStruct('OriginalFilename', 'CsvGraphTool.exe'),
-         StringStruct('ProductName', 'CSV Graph Tool'),
-         StringStruct('ProductVersion', '1.4.0')]
+         StringStruct('FileDescription', '스펙트럼 분석기'),
+         StringStruct('FileVersion', '1.4.1'),
+         StringStruct('InternalName', 'SpectrumAnalyzer'),
+         StringStruct('OriginalFilename', 'SpectrumAnalyzer.exe'),
+         StringStruct('ProductName', '스펙트럼 분석기'),
+         StringStruct('ProductVersion', '1.4.1')]
       )
     ]),
     VarFileInfo([VarStruct('Translation', [1042, 1200])])
