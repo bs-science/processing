@@ -74,6 +74,7 @@ class CsvGraphApp(tk.Tk):
         ttk.Button(actions, text="모든 파일 겹쳐 그리기", command=self.plot_overlay).pack(side="left", padx=8)
         ttk.Button(actions, text="농도별 평균 그래프", command=self.plot_concentration_averages).pack(side="left")
         ttk.Button(actions, text="그래프 미리보기", command=self.preview_graph).pack(side="left")
+        ttk.Button(actions, text="434/578 흡광도 비", command=self.show_absorbance_ratio).pack(side="left", padx=(8, 0))
 
         body = ttk.Panedwindow(self, orient="horizontal")
         body.pack(fill="both", expand=True, padx=18, pady=(0, 12))
@@ -303,6 +304,37 @@ class CsvGraphApp(tk.Tk):
         self.figure.tight_layout()
         self.canvas.draw()
         self.status_text.set(f"{dataset.path.name}: {len(x_values)}개 데이터 점을 표시했습니다.")
+
+    def show_absorbance_ratio(self) -> None:
+        """Show A578/A434 using the points nearest to 434 nm and 578 nm."""
+        selection = self.file_list.curselection()
+        if not selection or not self.x_column.get() or not self.y_column.get():
+            messagebox.showinfo("안내", "파일과 파장(X축)·흡광도(Y축) 열을 선택하세요.", parent=self)
+            return
+        dataset = self.datasets[selection[0]]
+        x_values, y_values = self._series(dataset, self.x_column.get(), self.y_column.get())
+        if not x_values:
+            messagebox.showerror("비율 계산 오류", "선택한 열에서 숫자 데이터를 찾지 못했습니다.", parent=self)
+            return
+
+        index_434 = min(range(len(x_values)), key=lambda index: abs(x_values[index] - 434.0))
+        index_578 = min(range(len(x_values)), key=lambda index: abs(x_values[index] - 578.0))
+        wavelength_434, absorbance_434 = x_values[index_434], y_values[index_434]
+        wavelength_578, absorbance_578 = x_values[index_578], y_values[index_578]
+        if absorbance_434 == 0:
+            messagebox.showerror("비율 계산 오류", "434 nm 부근의 흡광도가 0이어서 비율을 계산할 수 없습니다.", parent=self)
+            return
+
+        ratio = absorbance_578 / absorbance_434
+        messagebox.showinfo(
+            "434/578 흡광도 비",
+            f"파일: {dataset.path.name}\n\n"
+            f"434 nm 부근: {wavelength_434:.3f} nm, 흡광도 {absorbance_434:.6g}\n"
+            f"578 nm 부근: {wavelength_578:.3f} nm, 흡광도 {absorbance_578:.6g}\n\n"
+            f"A578 / A434 = {ratio:.6g}",
+            parent=self,
+        )
+        self.status_text.set(f"{dataset.path.name}: A578/A434 = {ratio:.6g}")
 
     def plot_overlay(self) -> None:
         if not self.datasets or not self.x_column.get() or not self.y_column.get():
