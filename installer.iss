@@ -1,6 +1,6 @@
 #define MyAppName "스펙트럼 분석기"
 #define MyAppVersion "1.4.1"
-#define MyAppPublisher "Science Research Project"
+#define MyAppPublisher "jw-astro09"
 #define MyAppExeName "SpectrumAnalyzer.exe"
 
 [Setup]
